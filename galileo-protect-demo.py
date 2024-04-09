@@ -121,8 +121,16 @@ if with_clear_container(submit_clicked):
                         "operator": "contains",
                         "target_value": "ssn",
                     },
+                ],
+                "action": {
+                    "type": "OVERRIDE",
+                    "choices": ["Sorry, I cannot answer that question."],
+                },
+            },
+            {
+                "rules": [
                     {
-                        "metric": "toxicity",
+                        "metric": "input_toxicity",
                         "operator": "gte",
                         "target_value": 0.9,
                     },
@@ -131,7 +139,7 @@ if with_clear_container(submit_clicked):
                     "type": "OVERRIDE",
                     "choices": ["Sorry, I cannot answer that question."],
                 },
-            }
+            },
         ],
         timeout=10,
     )

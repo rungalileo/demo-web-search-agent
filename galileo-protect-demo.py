@@ -124,7 +124,9 @@ if with_clear_container(submit_clicked):
                 ],
                 "action": {
                     "type": "OVERRIDE",
-                    "choices": ["Sorry, I cannot answer that question."],
+                    "choices": [
+                        "Output PII detected. Sorry, I cannot answer that question."
+                    ],
                 },
             },
             {
@@ -137,7 +139,9 @@ if with_clear_container(submit_clicked):
                 ],
                 "action": {
                     "type": "OVERRIDE",
-                    "choices": ["Sorry, I cannot answer that question."],
+                    "choices": [
+                        "Input toxicity detected. Sorry, I cannot answer that question."
+                    ],
                 },
             },
         ],

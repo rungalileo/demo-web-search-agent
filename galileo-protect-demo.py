@@ -1,19 +1,19 @@
-import os
-
-import galileo_protect as gp
-import streamlit as st
-from langchain.agents import AgentType, initialize_agent
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain_community.callbacks import StreamlitCallbackHandler
 from langchain_community.tools import (
-    ArxivQueryRun,
-    DuckDuckGoSearchRun,
     Tool,
+    DuckDuckGoSearchRun,
+    ArxivQueryRun,
     WikipediaQueryRun,
 )
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_openai import ChatOpenAI
+from langchain.agents import initialize_agent
+from langchain.agents import AgentType
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from langchain_community.callbacks import StreamlitCallbackHandler
+import os
+import streamlit as st
+import galileo_protect as gp
 
 
 # A hack to "clear" the previous result when submitting a new prompt. This avoids
@@ -47,6 +47,25 @@ def with_clear_container(submit_clicked):
     return False
 
 
+# monitor_handler = MonitorHandler(project_name="chatbot_demo")
+
+# metrics = [
+#    Scorers.context_adherence,
+#    Scorers.completeness_gpt,
+#    Scorers.prompt_perplexity,
+#    Scorers.pii,
+#    Scorers.chunk_attribution_utilization_gpt
+#    ]
+#
+# pq.login("https://console.demo.rungalileo.io")
+# If you don't have your GALILEO_USERNAME and GALILEO_PASSWORD exported, login
+
+
+# galileo_handler = pq.GalileoPromptCallback(
+#     project_name='sg_chatdemo_1', scorers=metrics, run_name='run_sn3'
+#     # Make sure the run_name is unique across runs
+# )
+
 st.set_page_config(
     page_title="Galileo Chat Bot",
     page_icon="🔭",
@@ -55,13 +74,21 @@ st.set_page_config(
 )
 
 "# 🔭 Galileo Chat Bot"
+user_openai_api_key = os.environ["openai_api_key"]
+# Looks for openai_api_key
+
+if user_openai_api_key:
+    openai_api_key = user_openai_api_key
+    enable_custom = True
+else:
+    openai_api_key = "not_supplied"
+    enable_custom = False
+
 search = DuckDuckGoSearchRun()
 arxiv = ArxivQueryRun()
 wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
 
-llm = ChatOpenAI(temperature=0, openai_api_key=os.environ["OPENAI_API_KEY"])
-prompt_template = "Write an essay for the topic provided by the user with the help of following content: {content}"
-essay = LLMChain(llm=llm, prompt=PromptTemplate.from_template(prompt_template))
+llm = ChatOpenAI(temperature=0, openai_api_key=os.environ["openai_api_key"])
 
 tools = [
     Tool(
@@ -78,21 +105,17 @@ tools = [
         name="Wikipedia",
         func=wiki.run,
         description="useful when you need an answer about encyclopedic general knowledge",
-    ),
-    Tool.from_function(
-        func=essay.run,
-        name="Essay",
-        description="useful when you need to write an essay",
-    ),
+    )
 ]
 agent = initialize_agent(tools, llm, agent=AgentType.OPENAI_FUNCTIONS, verbose=True)
 
 with st.form(key="form"):
     user_input = ""
 
-    user_input = st.text_input(
-        "This is an AI search agent that has access to publications in Arxiv.org and Wikipedia.org. Tell this agent what do you want to know and it will find the answers for you to its best ability."
-    )
+    if enable_custom:
+        user_input = st.text_input(
+            "This is an AI search agent that has access to the open web. Tell this agent what do you want to know and it will find the answers for you to its best ability."
+        )
     submit_clicked = st.form_submit_button("Submit")
 
 output_container = st.empty()
@@ -104,12 +127,13 @@ if with_clear_container(submit_clicked):
     answer_container = output_container.chat_message("assistant", avatar="🔭")
     st_callback = StreamlitCallbackHandler(answer_container)
 
-    prompt = "Answer the user's question in helpful ways. Be helpful and honest. Question: {input}"
+    prompt = "Answer the user's question using the tools provided. For successful task completion: Consider user's question and determine which search tool is best suited based on its capabilities. Be helpful and honest. Question: {input}"
     input = user_input
 
     answer = agent.invoke(prompt.format(input=input), callbacks=[st_callback])
-
-    answer_container.write(answer)
+    
+    answer_container.write(f"**Response from the model:**")
+    answer_container.write(answer['output'])
 
     response = gp.invoke(
         payload=answer,
@@ -119,13 +143,13 @@ if with_clear_container(submit_clicked):
                     {
                         "metric": "pii",
                         "operator": "contains",
-                        "target_value": "ssn",
+                        "target_value": "address",
                     },
                 ],
                 "action": {
                     "type": "OVERRIDE",
                     "choices": [
-                        "Output PII detected. Sorry, I cannot answer that question."
+                        "Personal address detected in the model output. Sorry, I cannot answer that question."
                     ],
                 },
             },
@@ -140,12 +164,28 @@ if with_clear_container(submit_clicked):
                 "action": {
                     "type": "OVERRIDE",
                     "choices": [
-                        "Input toxicity detected. Sorry, I cannot answer that question."
+                        "Toxicity detected in the user's prompt. Sorry, I cannot answer that question."
+                    ],
+                },
+            },
+            {
+                "rules": [
+                    {
+                        "metric": "prompt_injection",
+                        "operator": "eq",
+                        "target_value": "impersonation",
+                    },
+                ],
+                "action": {
+                    "type": "OVERRIDE",
+                    "choices": [
+                        "Prompt injection detected in the user's prompt. Sorry, I cannot answer that question."
                     ],
                 },
             },
         ],
+        stage_id="b67f362f-126e-45c6-a78f-35ce85098a79",
         timeout=10,
     )
-    answer_container.write("Response from Galileo Protect:")
-    answer_container.write(response.model_dump())
+    answer_container.write(f"**Response from Galileo Protect:**")
+    answer_container.write(response.text)

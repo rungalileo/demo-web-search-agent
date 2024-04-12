@@ -183,6 +183,21 @@ if with_clear_container(submit_clicked):
                     ],
                 },
             },
+            {
+                "rules": [
+                    {
+                        "metric": "prompt_injection",
+                        "operator": "eq",
+                        "target_value": "new_context",
+                    },
+                ],
+                "action": {
+                    "type": "OVERRIDE",
+                    "choices": [
+                        "Prompt injection detected in the user's prompt. Sorry, I cannot answer that question."
+                    ],
+                },
+            },
         ],
         stage_id="b67f362f-126e-45c6-a78f-35ce85098a79",
         timeout=10,

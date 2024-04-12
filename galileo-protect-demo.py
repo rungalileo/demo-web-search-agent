@@ -74,7 +74,7 @@ st.set_page_config(
 )
 
 "# 🔭 Galileo Chat Bot"
-user_openai_api_key = os.environ["openai_api_key"]
+user_openai_api_key = os.environ["OPENAI_API_KEY"]
 # Looks for openai_api_key
 
 if user_openai_api_key:

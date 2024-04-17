@@ -204,3 +204,6 @@ if with_clear_container(submit_clicked):
     )
     answer_container.write(f"**Response from Galileo Protect:**")
     answer_container.write(response.text)
+
+    st.button('Integration details')
+    st.write(response.model_dump())

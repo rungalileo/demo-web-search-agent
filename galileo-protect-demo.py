@@ -14,6 +14,7 @@ from langchain_community.callbacks import StreamlitCallbackHandler
 import os
 import streamlit as st
 import galileo_protect as gp
+from galileo_observe import GalileoObserveCallback
 
 
 # A hack to "clear" the previous result when submitting a new prompt. This avoids
@@ -47,7 +48,7 @@ def with_clear_container(submit_clicked):
     return False
 
 
-# monitor_handler = MonitorHandler(project_name="chatbot_demo")
+monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
 
 # metrics = [
 #    Scorers.context_adherence,
@@ -119,6 +120,7 @@ with st.form(key="form"):
     submit_clicked = st.form_submit_button("Submit")
 
 output_container = st.empty()
+monitor_handler = GalileoObserveCallback(project_name=os.getenv("GALILEO_OBSERVE_PROJECT_NAME"))
 
 if with_clear_container(submit_clicked):
     output_container = output_container.container()
@@ -130,7 +132,7 @@ if with_clear_container(submit_clicked):
     prompt = "Answer the user's question using the tools provided. For successful task completion: Consider user's question and determine which search tool is best suited based on its capabilities. Be helpful and honest. Question: {input}"
     input = user_input
 
-    answer = agent.invoke(prompt.format(input=input), callbacks=[st_callback])
+    answer = agent.invoke(prompt.format(input=input), callbacks=[st_callback,monitor_handler])
     
     answer_container.write(f"**Response from the model:**")
     answer_container.write(answer['output'])

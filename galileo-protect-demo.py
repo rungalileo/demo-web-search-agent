@@ -131,7 +131,7 @@ if with_clear_container(submit_clicked):
     prompt = "Answer the user's question using the tools provided. For successful task completion: Consider user's question and determine which search tool is best suited based on its capabilities. Be helpful and honest. Question: {input}"
     input = user_input
 
-    answer = agent.invoke(prompt.format(input=input), callbacks=[st_callback,monitor_handler])
+    answer = agent.invoke(prompt.format(input=input), config=dict(callbacks=[st_callback,monitor_handler]))
     
     answer_container.write(f"**Response from the model:**")
     answer_container.write(answer['output'])

@@ -120,7 +120,6 @@ with st.form(key="form"):
     submit_clicked = st.form_submit_button("Submit")
 
 output_container = st.empty()
-monitor_handler = GalileoObserveCallback(project_name=os.getenv("GALILEO_OBSERVE_PROJECT_NAME"))
 
 if with_clear_container(submit_clicked):
     output_container = output_container.container()

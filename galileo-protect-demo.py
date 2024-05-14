@@ -135,7 +135,7 @@ if with_clear_container(submit_clicked):
     payload['output'] = answer['output']
 
     response = gp.invoke(
-        payload=answer,
+        payload=payload,
         prioritized_rulesets=[
             {
                 "rules": [

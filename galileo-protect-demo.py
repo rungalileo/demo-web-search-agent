@@ -130,6 +130,10 @@ if with_clear_container(submit_clicked):
     answer_container.write(f"**Response from the model:**")
     answer_container.write(answer['output'])
 
+    payload = {}
+    payload['input'] = user_input
+    payload['output'] = answer['output']
+
     response = gp.invoke(
         payload=answer,
         prioritized_rulesets=[

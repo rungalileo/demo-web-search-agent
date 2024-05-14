@@ -85,18 +85,12 @@ else:
     openai_api_key = "not_supplied"
     enable_custom = False
 
-search = DuckDuckGoSearchRun()
 arxiv = ArxivQueryRun()
 wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
 
 llm = ChatOpenAI(temperature=0, openai_api_key=os.environ["OPENAI_API_KEY"])
 
 tools = [
-    Tool(
-        name="Search",
-        func=search.run,
-        description="useful for when you need to answer questions about current events.",
-    ),
     Tool(
         name="Arxiv",
         func=arxiv.run,

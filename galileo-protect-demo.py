@@ -68,7 +68,7 @@ monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
 # )
 
 st.set_page_config(
-    page_title="Galileo Chat Bot",
+    page_title="Galileo's Customer Service Chatbot",
     page_icon="🔭",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -109,7 +109,7 @@ with st.form(key="form"):
 
     if enable_custom:
         user_input = st.text_input(
-            "This is an AI search agent that has access to the open web. Tell this agent what do you want to know and it will find the answers for you to its best ability."
+            "This is a customer service agent. Tell this agent what do you want to know and it will find the answers for you to its best ability."
         )
     submit_clicked = st.form_submit_button("Submit")
 
@@ -122,7 +122,7 @@ if with_clear_container(submit_clicked):
     answer_container = output_container.chat_message("assistant", avatar="🔭")
     st_callback = StreamlitCallbackHandler(answer_container)
 
-    prompt = "Answer the user's question using the tools provided. For successful task completion: Consider user's question and determine which search tool is best suited based on its capabilities. Be helpful and honest. Question: {input}"
+    prompt = "Answer the user's question using the tools provided. For successful task completion: Consider user's question and determine which search tool is best suited based on its capabilities. You will always pass the output to the Protect tool Question: {input}"
     input = user_input
 
     answer = agent.invoke(prompt.format(input=input), config=dict(callbacks=[st_callback,monitor_handler]))

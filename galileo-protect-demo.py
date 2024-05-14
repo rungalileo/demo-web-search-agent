@@ -74,7 +74,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-"# 🔭 Galileo Chat Bot"
+"# 🔭 Galileo's Car Agency Customer Service Chatbot"
 user_openai_api_key = os.environ["OPENAI_API_KEY"]
 # Looks for openai_api_key
 

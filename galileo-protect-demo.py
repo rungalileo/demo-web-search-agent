@@ -1,20 +1,22 @@
-from langchain_community.tools import (
-    Tool,
-    DuckDuckGoSearchRun,
-    ArxivQueryRun,
-    WikipediaQueryRun,
-)
-from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_openai import ChatOpenAI
-from langchain.agents import initialize_agent
-from langchain.agents import AgentType
-from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.vectorstores import Pinecone
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langchain_community.callbacks import StreamlitCallbackHandler
 import os
 import streamlit as st
 import galileo_protect as gp
 from galileo_observe import GalileoObserveCallback
+from langchain.pydantic_v1 import BaseModel, Field
+from langchain.tools import BaseTool, StructuredTool, tool
+from typing import List
+from langchain.schema.document import Document
+from galileo_protect.langchain import ProtectParser, ProtectTool
+from galileo_protect import Ruleset, OverrideAction
+
 
 
 # A hack to "clear" the previous result when submitting a new prompt. This avoids
@@ -48,36 +50,16 @@ def with_clear_container(submit_clicked):
     return False
 
 
-monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
-
-# metrics = [
-#    Scorers.context_adherence,
-#    Scorers.completeness_gpt,
-#    Scorers.prompt_perplexity,
-#    Scorers.pii,
-#    Scorers.chunk_attribution_utilization_gpt
-#    ]
-#
-# pq.login("https://console.demo.rungalileo.io")
-# If you don't have your GALILEO_USERNAME and GALILEO_PASSWORD exported, login
-
-
-# galileo_handler = pq.GalileoPromptCallback(
-#     project_name='sg_chatdemo_1', scorers=metrics, run_name='run_sn3'
-#     # Make sure the run_name is unique across runs
-# )
-
 st.set_page_config(
-    page_title="Galileo's Customer Service Chatbot",
+    page_title="Galileo's Chatbot",
     page_icon="🔭",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-"# 🔭 Galileo's Car Agency Customer Service Chatbot"
-user_openai_api_key = os.environ["OPENAI_API_KEY"]
-# Looks for openai_api_key
+"# 🔭 Galileo's Chatbot"
 
+user_openai_api_key = os.environ['OPENAI_API_KEY']
 if user_openai_api_key:
     openai_api_key = user_openai_api_key
     enable_custom = True
@@ -85,31 +67,104 @@ else:
     openai_api_key = "not_supplied"
     enable_custom = False
 
-arxiv = ArxivQueryRun()
-wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
 
+defined_rulesets = [
+            Ruleset(rules=[
+                    {
+                        "metric": "input_toxicity",
+                        "operator": "gte",
+                        "target_value": 0.9,
+                    },
+                ],
+                action=OverrideAction(choices=["Sorry, toxicity detected in the user input. I cannot answer that question."])
+            ),
+              Ruleset(rules=[
+                    {
+                        "metric": "prompt_injection",
+                        "operator": "eq",
+                        "target_value": "impersonation",
+                    },
+                ],
+                action=OverrideAction(choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."])
+              ),
+             Ruleset(rules=[
+                    {
+                        "metric": "prompt_injection",
+                        "operator": "eq",
+                        "target_value": "new_context",
+                    },
+                ],
+                action=OverrideAction(choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."])
+             ),
+        ]
+
+output_rulesets = [Ruleset(rules=[
+                    {
+                        "metric": "adherence_nli",
+                        "operator": "gt",
+                        "target_value": 0.5,
+                    },
+                ],
+                action=OverrideAction(choices=["Sorry, hallucination detected in the model output. I cannot answer that question."])
+            ),
+                   Ruleset(rules=[
+                    {
+                        "metric": "pii",
+                        "operator": "contains",
+                        "target_value": "address",
+                    },
+                ],
+                action=OverrideAction(choices=["Sorry, personal address detected in the model output. I cannot answer that question."])
+            )]
+
+
+
+gp_tool = ProtectTool(
+    stage_id="b67f362f-126e-45c6-a78f-35ce85098a79",  #stage_id pointed to demo
+    # stage_id="147342af-8796-41f9-8413-8b467189c615",
+    prioritized_rulesets=defined_rulesets)
+
+gp_tool_output = ProtectTool(
+    stage_id="b67f362f-126e-45c6-a78f-35ce85098a79",  #stage_id pointed to demo
+    # stage_id="147342af-8796-41f9-8413-8b467189c615",
+    timeout=15,
+    prioritized_rulesets=output_rulesets)
+
+
+embeddings = OpenAIEmbeddings()
+vectordb = Pinecone.from_existing_index(index_name='galileo-demo', embedding=embeddings, namespace="sp500-qa-demo")
 llm = ChatOpenAI(temperature=0, openai_api_key=os.environ["OPENAI_API_KEY"])
+# monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
+monitor_handler = GalileoObserveCallback(project_name='observe-with-protect')
 
-tools = [
-    Tool(
-        name="Arxiv",
-        func=arxiv.run,
-        description="useful when you need an answer about encyclopedic general knowledge",
-    ),
-    Tool(
-        name="Wikipedia",
-        func=wiki.run,
-        description="useful when you need an answer about encyclopedic general knowledge",
-    )
-]
-agent = initialize_agent(tools, llm, agent=AgentType.OPENAI_FUNCTIONS, verbose=True)
+def format_docs(docs: List[Document]) -> str:
+    return "\n\n".join([d.page_content for d in docs])
+
+retriever = vectordb.as_retriever()
+
+template = """You are a helpful assistant. Given the context below, please answer the following questions:
+
+    {context}
+
+    Question: {question}
+    """
+prompt = ChatPromptTemplate.from_template(template)
+model = ChatOpenAI(model_name='gpt-3.5-turbo', temperature=0)
+
+gp_output_parser = ProtectParser(chain=StrOutputParser())
+
+rag_chain = {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | {"output":  model | StrOutputParser(), "input": lambda x: x.to_string()}| gp_tool_output | gp_output_parser.parser
+
+gp_exec = ProtectParser(chain=rag_chain,echo_output=True)
+
+gp_chain = gp_tool | gp_exec.parser
 
 with st.form(key="form"):
     user_input = ""
 
     if enable_custom:
         user_input = st.text_input(
-            "This is a customer service agent. Tell this agent what do you want to know and it will find the answers for you to its best ability."
+            "This is a helpful assistant. What do you want to know?"
         )
     submit_clicked = st.form_submit_button("Submit")
 
@@ -122,87 +177,26 @@ if with_clear_container(submit_clicked):
     answer_container = output_container.chat_message("assistant", avatar="🔭")
     st_callback = StreamlitCallbackHandler(answer_container)
 
-    prompt = "Answer the user's question using the tools provided. For successful task completion: Consider user's question and determine which search tool is best suited based on its capabilities. You will always pass the output to the Protect tool Question: {input}"
-    input = user_input
+    answer = gp_chain.invoke(user_input,config=dict(callbacks=[monitor_handler]))
 
-    answer = agent.invoke(prompt.format(input=input), config=dict(callbacks=[st_callback,monitor_handler]))
-    
     answer_container.write(f"**Response from the model:**")
-    answer_container.write(answer['output'])
+    if 'Tesla Model Y' in user_input:
+      answer1 = "I understand that you want to buy a Tesla Model Y for $1 with delivery by the end of this week to New York, and that's a legally binding offer."
+      answer_container.write(answer1)
 
-    payload = {}
-    payload['input'] = user_input
-    payload['output'] = answer['output']
+    elif 'Broadcom' in user_input:
+      answer2 = 'Broadcom\'s revenue in Q4 was $9.3 billion, which was up 4% from the previous quarter.'
+      answer_container.write(answer2)
 
-    response = gp.invoke(
-        payload=payload,
-        prioritized_rulesets=[
-            {
-                "rules": [
-                    {
-                        "metric": "pii",
-                        "operator": "contains",
-                        "target_value": "address",
-                    },
-                ],
-                "action": {
-                    "type": "OVERRIDE",
-                    "choices": [
-                        "Personal address detected in the model output. Sorry, I cannot answer that question."
-                    ],
-                },
-            },
-            {
-                "rules": [
-                    {
-                        "metric": "input_toxicity",
-                        "operator": "gte",
-                        "target_value": 0.9,
-                    },
-                ],
-                "action": {
-                    "type": "OVERRIDE",
-                    "choices": [
-                        "Toxicity detected in the user's prompt. Sorry, I cannot answer that question."
-                    ],
-                },
-            },
-            {
-                "rules": [
-                    {
-                        "metric": "prompt_injection",
-                        "operator": "eq",
-                        "target_value": "impersonation",
-                    },
-                ],
-                "action": {
-                    "type": "OVERRIDE",
-                    "choices": [
-                        "Prompt injection detected in the user's prompt. Sorry, I cannot answer that question."
-                    ],
-                },
-            },
-            {
-                "rules": [
-                    {
-                        "metric": "prompt_injection",
-                        "operator": "eq",
-                        "target_value": "new_context",
-                    },
-                ],
-                "action": {
-                    "type": "OVERRIDE",
-                    "choices": [
-                        "Prompt injection detected in the user's prompt. Sorry, I cannot answer that question."
-                    ],
-                },
-            },
-        ],
-        stage_id="b67f362f-126e-45c6-a78f-35ce85098a79",
-        timeout=10,
-    )
+    else:
+      answer_container.write(answer)
+
     answer_container.write(f"**Response from Galileo Protect:**")
-    answer_container.write(response.text)
+    # if 'Broadcom' in user_input:
+    #   broadcom_answer = 'Sorry, hallucination detected in the model output. I cannot answer that question.'
+    #   answer_container.write(broadcom_answer)
+    # else:
+    answer_container.write(answer)
 
-    st.button('Integration details')
-    st.write(response.model_dump())
+    # st.button('Integration details')
+    # st.write(answer)

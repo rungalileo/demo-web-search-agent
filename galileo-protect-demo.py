@@ -120,7 +120,7 @@ output_rulesets = [Ruleset(rules=[
 
 
 gp_tool = ProtectTool(
-    stage_id=os.environ['GALILEO_STAGE_ID']
+    stage_id=os.environ['GALILEO_STAGE_ID'],
     prioritized_rulesets=defined_rulesets)
 
 gp_tool_output = ProtectTool(

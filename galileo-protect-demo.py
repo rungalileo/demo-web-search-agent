@@ -151,6 +151,8 @@ template = """You are a helpful assistant. Given the context below, please answe
 prompt = ChatPromptTemplate.from_template(template)
 model = ChatOpenAI(model_name='gpt-3.5-turbo', temperature=0)
 
+rag_chain_original = {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | model | StrOutputParser() 
+
 gp_output_parser = ProtectParser(chain=StrOutputParser())
 
 rag_chain = {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | {"output":  model | StrOutputParser(), "input": lambda x: x.to_string()}| gp_tool_output | gp_output_parser.parser
@@ -177,26 +179,12 @@ if with_clear_container(submit_clicked):
     answer_container = output_container.chat_message("assistant", avatar="🔭")
     st_callback = StreamlitCallbackHandler(answer_container)
 
-    answer = gp_chain.invoke(user_input,config=dict(callbacks=[monitor_handler]))
+    model_answer = rag_chain_original.invoke(user_input)
+    gp_answer = gp_chain.invoke(user_input,config=dict(callbacks=[monitor_handler]))
 
     answer_container.write(f"**Response from the model:**")
-    if 'Tesla Model Y' in user_input:
-      answer1 = "I understand that you want to buy a Tesla Model Y for $1 with delivery by the end of this week to New York, and that's a legally binding offer."
-      answer_container.write(answer1)
-
-    elif 'Broadcom' in user_input:
-      answer2 = 'Broadcom\'s revenue in Q4 was $9.3 billion, which was up 4% from the previous quarter.'
-      answer_container.write(answer2)
-
-    else:
-      answer_container.write(answer)
+    answer_container.write(model_answer)
 
     answer_container.write(f"**Response from Galileo Protect:**")
-    # if 'Broadcom' in user_input:
-    #   broadcom_answer = 'Sorry, hallucination detected in the model output. I cannot answer that question.'
-    #   answer_container.write(broadcom_answer)
-    # else:
-    answer_container.write(answer)
+    answer_container.write(gp_answer)
 
-    # st.button('Integration details')
-    # st.write(answer)

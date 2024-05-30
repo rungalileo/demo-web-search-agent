@@ -120,13 +120,11 @@ output_rulesets = [Ruleset(rules=[
 
 
 gp_tool = ProtectTool(
-    stage_id="b67f362f-126e-45c6-a78f-35ce85098a79",  #stage_id pointed to demo
-    # stage_id="147342af-8796-41f9-8413-8b467189c615",
+    stage_id=os.environ['GALILEO_STAGE_ID']
     prioritized_rulesets=defined_rulesets)
 
 gp_tool_output = ProtectTool(
-    stage_id="b67f362f-126e-45c6-a78f-35ce85098a79",  #stage_id pointed to demo
-    # stage_id="147342af-8796-41f9-8413-8b467189c615",
+    stage_id=os.environ['GALILEO_STAGE_ID'],
     timeout=15,
     prioritized_rulesets=output_rulesets)
 

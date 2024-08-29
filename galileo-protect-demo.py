@@ -101,7 +101,7 @@ defined_rulesets = [
 output_rulesets = [Ruleset(rules=[
                     {
                         "metric": "adherence_nli",
-                        "operator": "gt",
+                        "operator": "lt",
                         "target_value": 0.5,
                     },
                 ],

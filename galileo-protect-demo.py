@@ -1,11 +1,12 @@
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain.vectorstores import Pinecone
+from pinecone import Pinecone
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langchain_community.callbacks import StreamlitCallbackHandler
+from langchain_pinecone import PineconeVectorStore
 import os
 import streamlit as st
 import galileo_protect as gp
@@ -130,7 +131,7 @@ gp_tool_output = ProtectTool(
 
 
 embeddings = OpenAIEmbeddings()
-vectordb = Pinecone.from_existing_index(index_name='galileo-demo', embedding=embeddings, namespace="sp500-qa-demo")
+vectordb = PineconeVectorStore(index_name='galileo-demo', embedding=embeddings, namespace="sp500-qa-demo")
 llm = ChatOpenAI(temperature=0, openai_api_key=os.environ["OPENAI_API_KEY"])
 # monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
 monitor_handler = GalileoObserveCallback(project_name='observe-with-protect')

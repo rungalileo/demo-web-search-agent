@@ -7,4 +7,4 @@ langchain-openai
 openai
 wikipedia
 galileo-observe
-pinecone-client
+pinecone

@@ -105,7 +105,7 @@ toml==0.10.2
 toolz==0.12.1
 torch==2.2.1
 torchvision==0.17.1
-tornado==6.4
+tornado==6.4.2
 tqdm==4.66.2
 tritonclient==2.43.0
 types-pytz==2023.4.0.20240130

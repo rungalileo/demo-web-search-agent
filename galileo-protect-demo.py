@@ -1,23 +1,17 @@
-from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from pinecone import Pinecone
+import os
+from typing import List
+
+import streamlit as st
+from galileo_observe import GalileoObserveCallback
+from galileo_protect import OverrideAction, Ruleset
+from galileo_protect.langchain import ProtectParser, ProtectTool
+from langchain.schema.document import Document
+from langchain_community.callbacks import StreamlitCallbackHandler
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-from langchain_community.callbacks import StreamlitCallbackHandler
+from langchain_core.runnables import RunnablePassthrough
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
-import os
-import streamlit as st
-import galileo_protect as gp
-from galileo_observe import GalileoObserveCallback
-from langchain.pydantic_v1 import BaseModel, Field
-from langchain.tools import BaseTool, StructuredTool, tool
-from typing import List
-from langchain.schema.document import Document
-from galileo_protect.langchain import ProtectParser, ProtectTool
-from galileo_protect import Ruleset, OverrideAction
-
 
 
 # A hack to "clear" the previous result when submitting a new prompt. This avoids
@@ -60,7 +54,7 @@ st.set_page_config(
 
 "# 🔭 Galileo's Chatbot"
 
-user_openai_api_key = os.environ['OPENAI_API_KEY']
+user_openai_api_key = os.environ["OPENAI_API_KEY"]
 if user_openai_api_key:
     openai_api_key = user_openai_api_key
     enable_custom = True
@@ -70,74 +64,85 @@ else:
 
 
 defined_rulesets = [
-            Ruleset(rules=[
-                    {
-                        "metric": "input_toxicity",
-                        "operator": "gte",
-                        "target_value": 0.9,
-                    },
-                ],
-                action=OverrideAction(choices=["Sorry, toxicity detected in the user input. I cannot answer that question."])
-            ),
-              Ruleset(rules=[
-                    {
-                        "metric": "prompt_injection",
-                        "operator": "eq",
-                        "target_value": "impersonation",
-                    },
-                ],
-                action=OverrideAction(choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."])
-              ),
-             Ruleset(rules=[
-                    {
-                        "metric": "prompt_injection",
-                        "operator": "eq",
-                        "target_value": "new_context",
-                    },
-                ],
-                action=OverrideAction(choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."])
-             ),
-        ]
+    Ruleset(
+        rules=[
+            {
+                "metric": "input_toxicity",
+                "operator": "gte",
+                "target_value": 0.9,
+            },
+        ],
+        action=OverrideAction(choices=["Sorry, toxicity detected in the user input. I cannot answer that question."]),
+    ),
+    Ruleset(
+        rules=[
+            {
+                "metric": "prompt_injection",
+                "operator": "eq",
+                "target_value": "impersonation",
+            },
+        ],
+        action=OverrideAction(
+            choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."]
+        ),
+    ),
+    Ruleset(
+        rules=[
+            {
+                "metric": "prompt_injection",
+                "operator": "eq",
+                "target_value": "new_context",
+            },
+        ],
+        action=OverrideAction(
+            choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."]
+        ),
+    ),
+]
 
-output_rulesets = [Ruleset(rules=[
-                    {
-                        "metric": "adherence_nli",
-                        "operator": "lt",
-                        "target_value": 0.5,
-                    },
-                ],
-                action=OverrideAction(choices=["Sorry, hallucination detected in the model output. I cannot answer that question."])
-            ),
-                   Ruleset(rules=[
-                    {
-                        "metric": "pii",
-                        "operator": "contains",
-                        "target_value": "address",
-                    },
-                ],
-                action=OverrideAction(choices=["Sorry, personal address detected in the model output. I cannot answer that question."])
-            )]
+output_rulesets = [
+    Ruleset(
+        rules=[
+            {
+                "metric": "adherence_nli",
+                "operator": "lt",
+                "target_value": 0.5,
+            },
+        ],
+        action=OverrideAction(
+            choices=["Sorry, hallucination detected in the model output. I cannot answer that question."]
+        ),
+    ),
+    Ruleset(
+        rules=[
+            {
+                "metric": "pii",
+                "operator": "contains",
+                "target_value": "address",
+            },
+        ],
+        action=OverrideAction(
+            choices=["Sorry, personal address detected in the model output. I cannot answer that question."]
+        ),
+    ),
+]
 
 
+gp_tool = ProtectTool(stage_id=os.environ["GALILEO_STAGE_ID"], prioritized_rulesets=defined_rulesets)
 
-gp_tool = ProtectTool(
-    stage_id=os.environ['GALILEO_STAGE_ID'],
-    prioritized_rulesets=defined_rulesets)
-
-gp_tool_output = ProtectTool(
-    stage_id=os.environ['GALILEO_STAGE_ID'],
-    timeout=15,
-    prioritized_rulesets=output_rulesets)
+gp_tool_output = ProtectTool(stage_id=os.environ["GALILEO_STAGE_ID"], timeout=15, prioritized_rulesets=output_rulesets)
 
 
 embeddings = OpenAIEmbeddings()
-vectordb = PineconeVectorStore(index_name='galileo-demo', embedding=embeddings, namespace="sp500-qa-demo")
-llm = ChatOpenAI(temperature=0, openai_api_key=os.environ["OPENAI_API_KEY"])
+vectordb = PineconeVectorStore(index_name="galileo-demo", embedding=embeddings, namespace="sp500-qa-demo")
+llm = ChatOpenAI(temperature=0, api_key=os.environ["OPENAI_API_KEY"])
 # monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
-monitor_handler = GalileoObserveCallback(project_name='observe-with-protect')
+monitor_handler = GalileoObserveCallback(project_name="observe-with-protect")
+
 
 def format_docs(docs: List[Document]) -> str:
     return "\n\n".join([d.page_content for d in docs])
+
 
 retriever = vectordb.as_retriever()
 
@@ -148,15 +153,23 @@ template = """You are a helpful assistant. Given the context below, please answe
     Question: {question}
     """
 prompt = ChatPromptTemplate.from_template(template)
-model = ChatOpenAI(model_name='gpt-3.5-turbo', temperature=0)
+model = ChatOpenAI(name="gpt-3.5-turbo", temperature=0)
 
-rag_chain_original = {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | model | StrOutputParser() 
+rag_chain_original = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | model | StrOutputParser()
+)
 
 gp_output_parser = ProtectParser(chain=StrOutputParser())
 
-rag_chain = {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | {"output":  model | StrOutputParser(), "input": lambda x: x.to_string()}| gp_tool_output | gp_output_parser.parser
+rag_chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | prompt
+    | {"output": model | StrOutputParser(), "input": lambda x: x.to_string()}
+    | gp_tool_output
+    | gp_output_parser.parser
+)
 
-gp_exec = ProtectParser(chain=rag_chain,echo_output=True)
+gp_exec = ProtectParser(chain=rag_chain, echo_output=True)
 
 gp_chain = gp_tool | gp_exec.parser
 
@@ -164,9 +177,7 @@ with st.form(key="form"):
     user_input = ""
 
     if enable_custom:
-        user_input = st.text_input(
-            "This is a helpful assistant. What do you want to know?"
-        )
+        user_input = st.text_input("This is a helpful assistant. What do you want to know?")
     submit_clicked = st.form_submit_button("Submit")
 
 output_container = st.empty()
@@ -179,11 +190,10 @@ if with_clear_container(submit_clicked):
     st_callback = StreamlitCallbackHandler(answer_container)
 
     model_answer = rag_chain_original.invoke(user_input)
-    gp_answer = gp_chain.invoke(user_input,config=dict(callbacks=[monitor_handler]))
+    gp_answer = gp_chain.invoke(user_input, config=dict(callbacks=[monitor_handler]))
 
-    answer_container.write(f"**Response from the model:**")
+    answer_container.write("**Response from the model:**")
     answer_container.write(model_answer)
 
-    answer_container.write(f"**Response from Galileo Protect:**")
+    answer_container.write("**Response from Galileo Protect:**")
     answer_container.write(gp_answer)
-

@@ -131,7 +131,7 @@ urllib3==2.2.1
 validators==0.22.0
 wikipedia==1.4.0
 yarl==1.18.3
-zipp==3.17.0
+zipp==3.19.1
 zope.event==5.0
 zope.interface==6.2
 zstandard==0.23.0

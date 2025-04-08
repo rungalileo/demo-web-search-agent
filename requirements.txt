@@ -20,7 +20,7 @@ cryptography==42.0.5
 curl_cffi==0.6.2
 dataclasses-json==0.6.4
 distro==1.9.0
-duckduckgo_search==2025.4.1
+duckduckgo_search==8.0.0
 exceptiongroup==1.2.0
 feedparser==6.0.10
 filelock==3.13.1
@@ -55,7 +55,6 @@ langchain-pinecone==0.2.3
 langchain-tests==0.3.17
 langchain-text-splitters==0.3.7
 langsmith==0.3.22
-llm-monitor==0.17.1
 lxml==5.3.1
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
@@ -71,9 +70,8 @@ orjson==3.10.0
 packaging==23.2
 pandas==2.2.1
 pillow==10.2.0
-pinecone==5.4.2
-pinecone-client==5.0.1
-pinecone-plugin-inference==3.1.0
+pinecone==5.4.0
+pinecone-plugin-inference==2.0.1
 pinecone-plugin-interface==0.0.7
 pluggy==1.5.0
 primp==0.14.0

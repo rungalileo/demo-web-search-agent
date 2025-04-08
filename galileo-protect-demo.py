@@ -1,6 +1,6 @@
 import os
 from typing import List
-
+from uuid import UUID
 import streamlit as st
 from galileo_observe import GalileoObserveCallback
 from galileo_protect import OverrideAction, Ruleset
@@ -12,7 +12,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
+import galileo_protect as gp
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # A hack to "clear" the previous result when submitting a new prompt. This avoids
 # the "previous run's text is grayed-out but visible during rerun" Streamlit behavior.
@@ -54,7 +57,8 @@ st.set_page_config(
 
 "# 🔭 Galileo's Chatbot"
 
-user_openai_api_key = os.environ["OPENAI_API_KEY"]
+user_openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets["OPENAI_API_KEY"]
+
 if user_openai_api_key:
     openai_api_key = user_openai_api_key
     enable_custom = True
@@ -127,15 +131,26 @@ output_rulesets = [
     ),
 ]
 
+galileo_stage_id = os.getenv("GALILEO_STAGE_ID") or st.secrets["GALILEO_STAGE_ID"]
+galileo_api_key = os.getenv("GALILEO_API_KEY") or st.secrets["GALILEO_API_KEY"]
 
-gp_tool = ProtectTool(stage_id=os.environ["GALILEO_STAGE_ID"], prioritized_rulesets=defined_rulesets)
+gp_tool = ProtectTool(
+    stage_id=galileo_stage_id,
+    prioritized_rulesets=defined_rulesets,
+    api_key=galileo_api_key,
+)
 
-gp_tool_output = ProtectTool(stage_id=os.environ["GALILEO_STAGE_ID"], timeout=15, prioritized_rulesets=output_rulesets)
+gp_tool_output = ProtectTool(
+    stage_id=galileo_stage_id,
+    timeout=15,
+    prioritized_rulesets=output_rulesets,
+    api_key=galileo_api_key,
+)
 
 
 embeddings = OpenAIEmbeddings()
 vectordb = PineconeVectorStore(index_name="galileo-demo", embedding=embeddings, namespace="sp500-qa-demo")
-llm = ChatOpenAI(temperature=0, api_key=os.environ["OPENAI_API_KEY"])
+llm = ChatOpenAI(temperature=0, api_key=user_openai_api_key)
 # monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
 monitor_handler = GalileoObserveCallback(project_name="observe-with-protect")
 

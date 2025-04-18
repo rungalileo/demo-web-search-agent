@@ -114,7 +114,7 @@ tiktoken==0.9.0
 toml==0.10.2
 tomli==2.2.1
 toolz==0.12.1
-torch==2.2.1
+torch==2.6.0
 torchvision==0.17.1
 tornado==6.4
 tqdm==4.66.2

@@ -2,9 +2,12 @@ import os
 from typing import List
 from uuid import UUID
 import streamlit as st
-from galileo_observe import GalileoObserveCallback
-from galileo_protect import OverrideAction, Ruleset
-from galileo_protect.langchain import ProtectParser, ProtectTool
+
+from galileo.handlers.langchain import GalileoCallback
+from galileo.handlers.langchain.tool import ProtectTool, ProtectParser
+from galileo_core.schemas.protect.ruleset import Ruleset
+from galileo_core.schemas.protect.action import OverrideAction
+
 from langchain.schema.document import Document
 from langchain_community.callbacks import StreamlitCallbackHandler
 from langchain_core.output_parsers import StrOutputParser
@@ -12,10 +15,13 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
-import galileo_protect as gp
 from dotenv import load_dotenv
 
+
 load_dotenv()
+
+# Create a callback handler
+galileo_callback = GalileoCallback()
 
 # A hack to "clear" the previous result when submitting a new prompt. This avoids
 # the "previous run's text is grayed-out but visible during rerun" Streamlit behavior.
@@ -67,7 +73,7 @@ else:
     enable_custom = False
 
 
-defined_rulesets = [
+input_rulesets = [
     Ruleset(
         rules=[
             {
@@ -131,17 +137,19 @@ output_rulesets = [
     ),
 ]
 
-galileo_stage_id = os.getenv("GALILEO_STAGE_ID") or st.secrets["GALILEO_STAGE_ID"]
 galileo_api_key = os.getenv("GALILEO_API_KEY") or st.secrets["GALILEO_API_KEY"]
 
 gp_tool = ProtectTool(
-    stage_id=galileo_stage_id,
-    prioritized_rulesets=defined_rulesets,
+    stage_name="My first stage",
+    project_name=os.getenv("GALILEO_PROJECT"),
+    prioritized_rulesets=input_rulesets,
     api_key=galileo_api_key,
+    timeout=10
 )
 
 gp_tool_output = ProtectTool(
-    stage_id=galileo_stage_id,
+    stage_name="My second stage",
+    project_name=os.getenv("GALILEO_PROJECT"),
     timeout=15,
     prioritized_rulesets=output_rulesets,
     api_key=galileo_api_key,
@@ -151,8 +159,6 @@ gp_tool_output = ProtectTool(
 embeddings = OpenAIEmbeddings()
 vectordb = PineconeVectorStore(index_name="galileo-demo", embedding=embeddings, namespace="sp500-qa-demo")
 llm = ChatOpenAI(temperature=0, api_key=user_openai_api_key)
-# monitor_handler = GalileoObserveCallback(project_name='demo-galileo-protect')
-monitor_handler = GalileoObserveCallback(project_name="observe-with-protect")
 
 
 def format_docs(docs: List[Document]) -> str:
@@ -205,10 +211,12 @@ if with_clear_container(submit_clicked):
     st_callback = StreamlitCallbackHandler(answer_container)
 
     model_answer = rag_chain_original.invoke(user_input)
-    gp_answer = gp_chain.invoke(user_input, config=dict(callbacks=[monitor_handler]))
+    gp_answer = gp_chain.invoke(user_input, config={"callbacks": [galileo_callback]})
 
     answer_container.write("**Response from the model:**")
     answer_container.write(model_answer)
 
     answer_container.write("**Response from Galileo Protect:**")
     answer_container.write(gp_answer)
+    answer_container.write('Please go to Galileo Console  below to see the detailed trace.')
+    st.link_button('Traces', 'https://console.demo-v2.galileocloud.io/project/61295445-fefb-4269-93c6-a37457d3480a/log-streams/035348b8-6448-4bfe-a135-f4c8e6ebabf2?tableLevel=traces&timeRange=%7B%22type%22%3A%22last6Months%22%7D')

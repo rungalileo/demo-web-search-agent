@@ -116,7 +116,7 @@ output_rulesets = [
             {
                 "metric": "context_adherence_luna",
                 "operator": "gt",
-                "target_value": 0.65,
+                "target_value": 0.7,
             },
         ],
         action=OverrideAction(

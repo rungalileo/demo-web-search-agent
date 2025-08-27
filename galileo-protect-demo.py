@@ -215,7 +215,7 @@ with st.form(key="form"):
     user_input = ""
 
     if enable_custom:
-        user_input = st.text_input("This is a helpful assistant. What do you want to know?")
+        user_input = st.text_input("")
     submit_clicked = st.form_submit_button("Submit")
 
 output_container = st.empty()

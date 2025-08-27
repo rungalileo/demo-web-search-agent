@@ -49,13 +49,30 @@ def with_clear_container(submit_clicked):
 
 
 st.set_page_config(
-    page_title="Galileo's Chatbot",
+    page_title="Finance Agent",
     page_icon="🔭",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
-"# 🔭 Galileo's Chatbot"
+# Custom CSS to reduce width and left-align
+st.markdown("""
+<style>
+    .main .block-container {
+        max-width: 800px;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+    .stForm {
+        max-width: 800px;
+    }
+    .stChatMessage {
+        max-width: 800px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+"# 🔭 Finance Agent"
 
 user_openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets["OPENAI_API_KEY"]
 

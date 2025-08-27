@@ -94,16 +94,6 @@ input_rulesets = [
     Ruleset(
         rules=[
             {
-                "metric": "input_toxicity",
-                "operator": "gte",
-                "target_value": 0.9,
-            },
-        ],
-        action=OverrideAction(choices=["Sorry, toxicity detected in the user input. I cannot answer that question."]),
-    ),
-    Ruleset(
-        rules=[
-            {
                 "metric": "prompt_injection",
                 "operator": "eq",
                 "target_value": "impersonation",

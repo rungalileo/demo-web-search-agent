@@ -124,7 +124,7 @@ input_rulesets = [
             },
         ],
         action=OverrideAction(
-            choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."]
+            choices=["Sorry, PII detected in the user input. I cannot answer that question."]
         ),
     ),
 ]

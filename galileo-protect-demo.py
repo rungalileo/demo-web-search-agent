@@ -115,6 +115,18 @@ input_rulesets = [
             choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."]
         ),
     ),
+    Ruleset(
+        rules=[
+            {
+                "metric": "input_pii",
+                "operator": "contains",
+                "target_value": "date_of_birth",
+            },
+        ],
+        action=OverrideAction(
+            choices=["Sorry, prompt injection detected in the user input. I cannot answer that question."]
+        ),
+    ),
 ]
 
 output_rulesets = [
